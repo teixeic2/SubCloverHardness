@@ -1,0 +1,254 @@
+---
+title: "ReAnalysis Table"
+author: "CT"
+date: "Thursday, December  05, 2016"
+output:
+word_document: default
+html_document: default
+note: Re analysis data and weatherfiles to merge
+---
+
+Aim:
+
+- This script merges the database with flowering time and the calculated thermal time (scripts 1 and 2) 
+
+- Then calculates the TTsum at sowing date and the TTSum at flowering at a certain percenatge . Calculates the TTSum to flowering. 
+- Evaluate the rate of flowering (%/day or TT) to adjust the TT to flowering to 50% (most common observation) 
+-
+
+
+
+```{r, warning=FALSE}
+library(here)
+library(tidyr)
+library (dplyr)
+library (ggplot2)
+library(agricolae)
+library(knitr)
+library (lubridate)
+library(scales)
+```
+
+Paths
+
+```{r   loadFile}
+print(paste0("Here is: ", here()))
+chapterPath <- paste0(here(),"/Chapter_03") 
+rawPath <- paste0(chapterPath,"/Data/RawData/")
+workDPath <- paste0(chapterPath,"/Data/WorkedData/")
+
+```
+
+Here loading the database: publication, location and dates of experiments 
+
+
+
+
+```{r   loadFile}
+
+
+#get dataframe created in ReAnalysis script 1
+#df_Data <- read.table("df_DaysToFlower.txt",header=TRUE)
+df_Data <-read.table(paste0(workDPath,"df_DaysToFlower.txt"),header=TRUE)
+
+#head(df_Data)
+
+summary(df_Data)
+
+```
+
+```{r}
+#df_CumTT <- read.table("df_CumTT.txt",header=TRUE)
+df_CumTT  <-read.table(paste0(workDPath,"df_CumTT.txt"),header=TRUE)
+summary (df_CumTT)
+
+```
+
+```{r}
+df_CumTT2 <- df_CumTT %>%
+  dplyr:: select(LocationYear, Date, SumTTday,Pp)
+
+  summary (df_CumTT2)
+```
+
+```{r  jointwodataframes }
+#
+
+df_Rea <- merge(df_Data, df_CumTT2,by.x=c("LocationYear","SowingDate"), by.y=c("LocationYear","Date"))
+
+summary(df_Rea)
+
+```
+
+```{r}
+#Create TTatSow
+df_Rea1 <- df_Rea %>%
+mutate(TTSumSow=(SumTTday)) %>%
+dplyr::select(-SumTTday)
+summary(df_Rea1)
+
+```
+
+
+```{r}
+#Create TTsum at flowering
+
+df_CumTT3 <- df_CumTT %>%
+dplyr::select(LocationYear,SumTTday,Date)
+
+df_Rea2 <- merge(df_Rea1, df_CumTT3,by.x=c("LocationYear","StartFlowering"), by.y=c("LocationYear","Date"))
+
+summary(df_Rea2)
+```
+
+
+```{r}
+#Create TTsum at flowering 
+df_Rea3 <- df_Rea2 %>%
+mutate(TTSumFlower=(SumTTday)) %>%
+dplyr::select(-SumTTday) %>%
+mutate(TTtoFlower=TTSumFlower-TTSumSow)
+
+summary(df_Rea3)
+
+#write.table(df_Rea3, "df_Rea3.txt")
+write.table(df_Rea3,paste0(workDPath, "df_Rea3.txt"))
+
+```
+
+```{r, fig.height=8 , fig.width= 20}
+#Graph it to  check 
+
+df_Rea3 %>%
+  dplyr::select(LocationYear:Treatcultivar,DaysToFlower,TTtoFlower,Country) %>%
+  gather("VarName","VarValue",DaysToFlower:TTtoFlower)  %>%
+  mutate(VarName=factor(VarName, level=c("DaysToFlower","TTtoFlower"),labels=c("Days to flower","Thermal-time to flowering (oCd)"))) %>%
+    mutate(Month=format(as.Date(ymd(SowingDate)),"%b")) %>%
+#  ggplot(aes(x=reorder(Month,month(SowingDate)), y=DaysToFlower)) +
+  #filter(Treatcultivar=="MtBarker") %>%
+  ggplot(aes(x= reorder(Location,VarValue), y=VarValue))+
+  geom_boxplot(alpha=0.2)+
+  #geom_jitter(size=3,alpha=0.7,width = 0.1, aes(colour=reorder(Month,month(SowingDate)),shape=reorder(Month,month(SowingDate))))+
+  #scale_shape_manual(values = c(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14))+
+  geom_jitter(size=3,alpha=0.7,width = 0.1, aes(shape= Country, colour=reorder(Month,month(SowingDate))))+
+  #theme(legend.position="none")+
+  labs(x="Experiment location", y="Time to flower")+
+  theme(axis.text.x=element_text(angle = 0, hjust = 0, size= 9))+
+  theme(axis.text.y=element_text(size= 18))+
+  theme_bw(base_size=18)+
+    facet_grid(.~VarName, scales="free") +
+ # facet_wrap(~VarName, scales="free") +
+  coord_flip() + theme(legend.position="top") + guides(colour=guide_legend(title="Sowing month"))
+  
+#ggsave("plot_DaysTTFlowerLocation.png", width=12, height=6, dpi=400)
+```
+
+then back to the original graph with sowing date in X and days and TT as panels 
+
+
+
+
+```{r fig.height=15 , fig.width= 15}
+
+df_Rea3 %>%
+  mutate(Month=format(as.Date(ymd(SowingDate)),"%b")) %>%
+  ggplot(aes(x=reorder(Month,month(SowingDate)), y=DaysToFlower)) +
+ # geom_point(alpha=0.2)+
+  geom_jitter(alpha=0.7,width = 0.3, aes(colour=Treatcultivar))+
+  geom_boxplot(alpha=0.2)+
+  geom_violin(alpha=0.2)+
+  labs(x=" Sowing Month", y="Days to flower")+
+  facet_wrap(Country~Location) + theme(legend.position="bottom")
+```
+
+
+```{r , fig.height=5 , fig.width= 10}
+#Subset of DeatetAl (Waggaw1985 to normalise flowering 50% )
+
+df_Rea3 %>%
+  filter(LocationYear=="Waggawagga1985"& AuthorYear=="DearEtal1993") %>%
+  #filter(Treatcultivar=="Clare") %>%
+  group_by(SowingDate,Treatcultivar) %>%
+  ggplot(aes(x=TTtoFlower, y=PercentFlower,colour=Treatcultivar)) +
+  geom_point()+
+  #geom_line()+
+  geom_smooth(method ="lm",se=FALSE)+
+  facet_grid(.~SowingDate, scales = "free")
+#write loop to calculate slope of individual cultivars 
+
+
+
+```
+
+```{r}
+#create slopes for each cv 
+
+df_ReaSlop <- df_Rea3 %>%
+  filter(LocationYear=="Waggawagga1985" &  AuthorYear=="DearEtal1993") %>%
+  group_by(SowingDate,Treatcultivar)%>%
+do(mod = lm(PercentFlower ~ TTtoFlower, data = .)) %>%
+  mutate(Slope = summary(mod)$coeff[2]) %>%
+  dplyr::select(-mod)
+
+#note: slope is %/oCd!!
+
+summary(df_ReaSlop)
+```
+
+
+```{r, fig.height=20}
+#graph the slopes 
+df_ReaSlop %>%
+  group_by(SowingDate) %>%
+  ggplot(aes(x=reorder(Treatcultivar,Slope), y=95/Slope,fill=Treatcultivar)) +
+  geom_bar(size=10, stat='identity') +
+  facet_wrap(~SowingDate)+
+    theme(text = element_text(size=40),
+        axis.text.x = element_text(angle=90, hjust=1)) +
+  ylab("Thermal-time from 5% to 100% flowering")
+  
+#95 used because readings were 5 , 50 and 100 % flowering 
+```
+
+
+# use cluster anslysis to define groups of cultivars. Here created the dataframe to do that 
+
+```{r}
+
+df_tempTTflo <- df_ReaSlop %>%
+  mutate(TTflower= 95/Slope)
+
+#write.table(df_tempTTflo, "dfTempTTFLOR.txt")
+write.table(df_tempTTflo,paste0(workDPath, "dfTempTTFLOR.txt"))
+
+```
+
+
+
+
+```{r}
+
+#create the average of TT for 5 , 50 and 100 % , used 95/Slope!
+
+df_ReaSlop %>%
+  group_by(SowingDate)%>%
+  mutate(TT=95/Slope)%>%
+  summarise(mean=mean(Slope), sd=sd(Slope),meanTT=mean(TT), sdTT=sd(TT))
+  
+# calculate Standard error as  <- function(x) sd(x)/sqrt(smaple size(n)) for dear et al n=4
+summary(df_ReaSlop)
+```
+
+
+```{r}
+
+#str(df_Rea3)
+
+d <-df_Rea3 %>%
+  filter(LocationYear=="Waggawagga1985"&  AuthorYear=="DearEtal1993") %>%
+  group_by(SowingDate)%>%
+  
+ # mutate(DaysToFlower= as.numeric(DaysToFlower))%>%
+  summarise(mean=mean(DaysToFlower), sd=sd(DaysToFlower))
+```
+

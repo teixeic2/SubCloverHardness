@@ -1,0 +1,388 @@
+---
+title: "ReAnalysis Table"
+author: "CT"
+date: "Thursday, December  05, 2016"
+output:
+  word_document: default
+  html_document: default
+note: Re analysis after  merged weather, calculated Tt, re calculate the TT for mid
+  flowering .
+---
+
+AIM:
+
+_this script reads the file created in previous script (script 3 where the TT to flower was adjusted to 50% ). Normalisation of TT to flower.
+- graph the days and TTAdj50Flo(TT adjusted to 50% Flowering) by location and cultivar (explore location and cultivar effects )
+
+
+
+
+```{r, warning=FALSE}
+library(here)
+library(tidyr)
+library (dplyr)
+library (ggplot2)
+library(agricolae)
+library(knitr)
+library (lubridate)
+library(scales)
+```
+
+
+```{r}
+print(paste0("Here is: ", here()))
+chapterPath <- paste0(here(),"/Chapter_03") 
+rawPath <- paste0(chapterPath,"/Data/RawData/")
+workDPath <- paste0(chapterPath,"/Data/WorkedData/")
+```
+
+
+
+```{r   loadFile}
+
+#get dataframe created in ReAnalysis1
+#df_Rea3 <- read.table("df_Rea3.txt",header=TRUE)
+df_Rea3 <-read.table(paste0(workDPath,"df_Rea3.txt"),header=TRUE)
+
+
+#head(df_Data)
+
+summary(df_Rea3)
+
+```
+
+Use slope values (Rea3) to normalise TT flowering 
+
+```{r}
+#Flowering reference = Floref
+floref <- 50
+
+TTpercflo <- 2.2 # degree days from 5 to full (100) flowering (value calculated from DearEtAL1993_Reanalysis3 script 1/0.45)
+
+df_Rea4 <- df_Rea3 %>%
+  mutate(TTFloAdj=((floref-PercentFlower)*TTpercflo )+TTtoFlower)
+
+summary(df_Rea4)
+
+  
+```
+
+
+```{r}
+#graph TTtoFlower vs TTFloAdj
+#Check TT 
+df_Rea4  %>% 
+ggplot(aes(x=TTtoFlower, y= TTFloAdj)) +
+    geom_point(shape=21)+
+  xlim(500,2800)+
+  geom_abline(intercept = 0, slope = 1)
+
+```
+
+Analysis of TTFlowerAdj vs T5-100. Is there any relationship between Time to flower and period (short orlong) for flower duration (5 to 100 %)? use DearEtAl1993 dataset to check.
+
+
+```{r}
+df_Rea4  %>% 
+  filter(LocationYear=="Waggawagga1985"& AuthorYear=="DearEtal1993") %>%
+  #tidyr::gather("Variable", "Value",PercentFlower,TTFloAdj) %>%
+    ggplot(aes(x=PercentFlower, y= TTFloAdj, colour=Treatcultivar)) +
+  geom_point(shape=21) 
+ #theme(legend.position="none")
+  #facet_grid(), scales = "free")
+ 
+```
+
+
+
+
+plot TTadj vs. sowing date
+
+```{r , fig.height=5, fig.width=10}
+df_Rea4  %>% 
+  filter(Treatcultivar=="Trikkala"|
+         Treatcultivar=="Dalkeith"|
+           Treatcultivar=="Woogenellup"| 
+           Treatcultivar=="MtBarker") %>%
+ggplot(aes(x=month(SowingDate), y= TTFloAdj, colour=Treatcultivar)) +
+    geom_point(shape=21) +
+  scale_x_continuous(breaks = c(2,4,6,8,10,12) )+
+  #scale_x_date(date_breaks = "1 month", date_labels =  "%b %Y") 
+  geom_smooth()
+  #facet_grid(Country~.)
+
+
+```
+
+
+Graph days to Flower and TTAdj vs. Location 
+
+
+```{r,fig.height=5, fig.width=10}
+library(scales)
+df_Rea4  %>% 
+  tidyr::gather("Variable", "Value",DaysToFlower,TTFloAdj) %>%
+  #use this filter to analyse single locations
+  #filter (Location=="Whatawhata")%>%
+  ggplot(aes(x=Location, y= Value, colour=Treatcultivar)) +
+  geom_point(shape=21) +
+  theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+ theme(legend.position="none")+
+  facet_grid(Variable~Country, scales = "free")
+
+
+```
+
+Explore the effect of sowing date 
+
+```{r, fig.height=8 , fig.width= 20}
+df_Rea4 %>%
+  dplyr::select(LocationYear:Treatcultivar,DaysToFlower,TTtoFlower,Country) %>%
+  gather("VarName","VarValue",DaysToFlower:TTtoFlower)  %>%
+  mutate(VarName=factor(VarName, level=c("DaysToFlower","TTtoFlower"),labels=c("Days to flower","Thermal-time to flowering (oCd)"))) %>%
+    mutate(Month=format(as.Date(ymd(SowingDate)),"%b")) %>%
+#  ggplot(aes(x=reorder(Month,month(SowingDate)), y=DaysToFlower)) +
+  #filter(Treatcultivar=="MtBarker") %>%
+  ggplot(aes(x= reorder(Location,VarValue), y=VarValue))+
+  geom_boxplot(alpha=0.2)+
+  #geom_jitter(size=3,alpha=0.7,width = 0.1, aes(colour=reorder(Month,month(SowingDate)),shape=reorder(Month,month(SowingDate))))+
+  #scale_shape_manual(values = c(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14))+
+  geom_jitter(size=3,alpha=0.7,width = 0.1, aes(shape= Country, colour=reorder(Month,month(SowingDate))))+
+  #theme(legend.position="none")+
+  labs(x="Experiment location", y="Time to flower")+
+  theme(axis.text.x=element_text(angle = 0, hjust = 0, size= 9))+
+  theme(axis.text.y=element_text(size= 18))+
+  theme_bw(base_size=18)+
+    facet_grid(.~VarName, scales="free") +
+ # facet_wrap(~VarName, scales="free") +
+  coord_flip() + theme(legend.position="top") + guides(colour=guide_legend(title="Sowing month"))
+  
+ggsave("plot_DaysTTFlowerLocation.png", width=12, height=6, dpi=400)
+```
+
+
+
+
+Then select Contrasting cultivars to compare : eg: Trikkala, Tallarook, MtBarker
+
+```{r,fig.height=5, fig.width=10}
+
+library(scales)
+df_Rea4  %>% 
+  tidyr::gather("Variable", "Value",DaysToFlower,TTFloAdj) %>%
+  filter(Treatcultivar=="Trikkala"| 
+           Treatcultivar=="Nungarin"|
+           Treatcultivar=="Denmark"|
+           Treatcultivar=="MtBarker"|
+           Treatcultivar=="Bena"|
+           Treatcultivar=="Tallarook"|
+           Treatcultivar=="Dalkeith") %>%
+  ggplot(aes(x=Location, y= Value, colour=Treatcultivar)) +
+  geom_boxplot(alpha=0.2)+
+  geom_jitter(width = 0.1, aes(colour=Treatcultivar))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+ #theme(legend.position="none")+
+  labs(x=" Location", y="    oCd        Days")+
+  facet_grid(Variable~Country, scales = "free")
+
+summary (df_Rea4)
+
+```
+
+##This graph displays the TTAdjo50Flo!! 
+
+```{r, fig.height=8 , fig.width= 20}
+
+str(df_Rea4)
+
+df_Rea4 %>%
+  dplyr::select(LocationYear:Treatcultivar,DaysToFlower,TTtoFlower,Country) %>%
+  filter(Treatcultivar=="Trikkala"| 
+           Treatcultivar=="Nungarin"|
+           Treatcultivar=="Denmark"|
+           Treatcultivar=="MtBarker"|
+           Treatcultivar=="Bena"|
+           Treatcultivar=="Tallarook"|
+           Treatcultivar=="Woogenellup"|
+           Treatcultivar=="Dalkeith")%>%
+
+
+  
+  gather("VarName","VarValue",DaysToFlower:TTtoFlower)  %>%
+  mutate(VarName=factor(VarName, level=c("DaysToFlower","TTtoFlower"),labels=c("Days to flower","Thermal-time to flowering (oCd)"))) %>%
+    mutate(Month=format(as.Date(ymd(SowingDate)),"%b")) %>%
+#  ggplot(aes(x=reorder(Month,month(SowingDate)), y=DaysToFlower)) +
+  #filter(Treatcultivar=="MtBarker") %>%
+  ggplot(aes(x= reorder(Location,VarValue), y=VarValue))+
+  geom_boxplot(alpha=0.2)+
+  #geom_jitter(size=3,alpha=0.7,width = 0.1, aes(colour=reorder(Month,month(SowingDate)),shape=reorder(Month,month(SowingDate))))+
+  #scale_shape_manual(values = c(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14))+
+  geom_jitter(size=3,alpha=0.7,width = 0.1, aes(shape= Country, colour=Treatcultivar))+
+  #theme(legend.position="none")+
+  labs(x="Experiment location", y="Time to flower")+
+  theme(axis.text.x=element_text(angle = 0, hjust = 0, size= 9))+
+  theme(axis.text.y=element_text(size= 18))+
+  theme_bw(base_size=18)+
+    facet_grid(.~VarName, scales="free") +
+ # facet_wrap(~VarName, scales="free") +
+  coord_flip() + theme(legend.position="top") + guides(colour=guide_legend(title="Cultivar "))
+
+#ggsave("plot_DaysTTFlowerCultivar.png", width=12, height=6, dpi=400)
+```
+
+
+
+
+
+Show genotype effect (need to fix it)
+
+
+```{r,fig.height=5, fig.width=10}
+
+library(scales)
+df_Rea41 <- df_Rea4  %>% 
+  mutate(Month=format(as.Date(ymd(SowingDate)),"%b")) %>%
+  tidyr::gather("Variable", "Value",DaysToFlower,TTFloAdj) %>%
+  filter(Treatcultivar=="Trikkala"| 
+           Treatcultivar=="Dalkeith"|
+           Treatcultivar=="Karridale"|
+           Treatcultivar=="Nungarin"|
+           Treatcultivar=="Denmark"|
+           Treatcultivar=="MtBarker"|
+           Treatcultivar=="Bena"|
+           Treatcultivar=="Woogenellup"|
+           Treatcultivar=="Tallarook"|
+           Treatcultivar=="Larisa") 
+  df_Rea41 %>%
+  ggplot(aes(x=Location, y= Value, colour=Treatcultivar)) +
+  geom_boxplot(alpha=0.2)+
+  geom_jitter(width = 0.1, aes(colour=Treatcultivar))+
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))+
+ #theme(legend.position="none")+
+    ylim(0, 2500)+
+  labs(x=" Location", y="    oCd  ")+
+    theme(text = element_text(size = 12))+
+  facet_wrap(~Month, ncol= 5, scales = "free")
+#facet_grid(Variable~.,scale="free") 
+
+
+
+#summary (df_Rea4)
+```
+
+
+
+
+
+```{r, fig.height=5, fig.width=10}
+df_Rea4  %>% 
+  dplyr::select(LocationYear:Treatcultivar,DaysToFlower,TTtoFlower,Country,TTFloAdj) %>%
+  tidyr::gather("Variable", "Value",DaysToFlower,TTFloAdj) %>%
+  mutate(Month=format(as.Date(ymd(SowingDate)),"%b")) %>%
+  
+  ggplot(aes(x=reorder(Month,month(SowingDate)), y= Value)) +
+  labs(x=" Sowing Month", y="   oCd      Days  ")+
+  #geom_boxplot(alpha=0.2)+
+  geom_point(alpha=0.2)+
+  geom_boxplot(alpha=0.2)+
+  geom_jitter(alpha=0.2,width = 0.3, aes(colour=Location))+
+  labs(x=" Sowing Month", y="                oCd                Days ")+
+  facet_wrap(Variable~Country)
+  #geom_point(shape=21) +
+# theme(legend.position="none")+
+  #facet_grid(Month~SowTreat, scales = "free")
+
+```
+
+```{r}
+summary (df_Rea4)
+```
+
+
+
+
+```{r, fig.height=5, fig.width=10}
+# df_Rea4  %>% 
+#   tidyr::gather("Variable", "Value",DaysToFlower,TTFloAdj) %>%
+#   filter(Treatcultivar=="MtBarker")%>%
+#   mutate(Month=format(as.Date(ymd(SowingDate)),"%b")) %>%
+#   ggplot(aes(x=reorder(Month,month(SowingDate)), y= Value, colour=Location)) +
+#   labs(x=" Sowing Month", y="   oCd      Days  ")+
+#   geom_boxplot(alpha=0.2)+
+#   geom_jitter(alpha=0.2,width = 0.3, aes(colour=Location))+
+#   labs(x=" Sowing Month", y="Days to flower")+
+#   
+#   #facet_wrap(~Country)
+#   #geom_point(shape=21) +
+# # theme(legend.position="none")+
+#   facet_grid(Variable~Country, scales = "free")
+
+```
+
+
+
+
+Then, select datasets with more than one sowing date in different months:
+
+Condobolin1986
+Katanning1990
+Launceston1987
+Melbourne1969
+Waggawagga1985
+
+This df will be df_Rea5
+
+```{r,fig.height=5, fig.width=10,warning=FALSE}
+library(scales)
+df_Rea5 <-df_Rea4  %>% 
+  filter(LocationYear=="Condobolin1986"| 
+           LocationYear=="Katanning1990"|
+           LocationYear=="Launceston1987"|
+           LocationYear=="Melbourne1969"|
+           LocationYear=="Waggawagga1985") %>%
+  tidyr::gather("Variable", "Value",DaysToFlower,TTFloAdj)
+
+  df_Rea5 %>% 
+  ggplot(aes(x=Pp, y= Value, colour=Treatcultivar)) +
+  geom_point(shape=21) +
+ geom_smooth(se=FALSE)+
+  #theme(legend.position="none")+
+  facet_grid(Variable~Country, scales = "free")
+
+#fixme makes month _number into date in month name (Apr, May etc ) 
+
+  
+
+```
+
+
+Then, select Location year with different cultivars in a range of Pp. This will be df_Rea6.
+indexLocCult = combination of LocationYear and cultivar.
+
+
+```{r,fig.height=5, fig.width=10,warning=FALSE}
+
+df_Rea6 <- df_Rea5 %>% 
+  filter(LocationYear!="Waggawagga1985") %>%
+  mutate(indexLocCult=paste0(LocationYear,"_",Treatcultivar))
+  
+  df_Rea6 %>%
+  ggplot(aes(x=month(SowingDate), y= Value, colour=indexLocCult)) +
+  geom_point(shape=21) +
+ geom_smooth(se=FALSE)+
+  #theme(legend.position="none")+
+  facet_grid(Variable~Country, scales = "free")
+
+summary(df_Rea6)
+```
+
+
+```{r}
+
+#Next step include Pp (next script Reanalysis 5). Use table created here! 
+
+
+#write.table(df_Rea6, "df_Rea6.txt")
+write.table(df_Rea6,paste0(workDPath, "df_Rea6.txt"))
+```
+

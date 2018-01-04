@@ -12,6 +12,18 @@ output: html_notebook
 - Saves technically consistent data
 
 
+```{r, warning=FALSE}
+library(here)
+library(tidyr)
+library (dplyr)
+library (ggplot2)
+library(agricolae)
+library(knitr)
+library (lubridate)
+library(scales)
+```
+
+
 ```{r}
 print(paste0("Here is: ", here()))
 chapterPath <- paste0(here(),"/Chapter_03") 

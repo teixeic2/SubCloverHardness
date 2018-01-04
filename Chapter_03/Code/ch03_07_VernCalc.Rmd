@@ -1,0 +1,249 @@
+---
+title: "ReAnalysis Table"
+author: "CT"
+date: "Thursday, December  27, 2016"
+output:
+  word_document: default
+  html_document: default
+note: Re analysis data compilation continue from script5and6, vernalization calc.
+
+---
+
+
+
+```{r, warning=FALSE}
+library(here)
+library(tidyr)
+library (dplyr)
+library (ggplot2)
+library(agricolae)
+library(knitr)
+library (lubridate)
+library(scales)
+library (segmented)
+library(hydroGOF)
+```
+
+
+```{r}
+print(paste0("Here is: ", here()))
+chapterPath <- paste0(here(),"/Chapter_03") 
+rawPath <- paste0(chapterPath,"/Data/RawData/")
+workDPath <- paste0(chapterPath,"/Data/WorkedData/")
+```
+
+
+
+```{r readData}
+
+
+#create file
+#df_We <- read.table("RawWeather.txt",header=TRUE)
+df_We <- read.table(paste0(rawPath,"RawWeather.txt"),header=TRUE)
+#head(df_We)
+
+summary(df_We)
+```
+
+
+
+```{r changeformat, echo=FALSE}
+
+df_We$Date<-dmy(df_We$Date)
+
+str(df_We)
+
+```
+
+## Graph it 
+
+```{r, fig.height=10, fig.width=10}
+
+df_We %>%
+  tidyr::gather("Variable", "Value",Tx:Pp) %>%
+  ggplot(aes(x=Date,y=Value))+
+  geom_line(aes(colour=factor(Variable))) +
+  facet_wrap(~LocationYear,scale="free") +
+  scale_color_manual(values=c("#333333", "#9999CC", "#CC3300"))+
+  theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+
+
+```
+
+## Define Tt vernalisation temperatures
+
+Considered an overall average the following references
+Atkin 1955;  
+Tb: - 3
+Top range:1-9
+Tmax: 12
+ 
+							
+
+
+```{r}
+
+#Create Accumulated vernalize temperatures by  Aitken 1955.
+
+tt_card <- data.frame(temp=c(-3,1,10,12,25),TT=c(0,1,1,0,0))
+tt_card %>%
+  ggplot(aes(x=temp, y=TT))+
+  #labs(x="Temperature (degree Celsius) ")+
+  labs(y="Vernalization (day) ") +
+ # ylim(0,max(tt_card$TT))
+  geom_line()+
+theme_bw()+
+ylim(0,1)+
+xlab(expression(Temperature~"("^"o"*"C)"))+
+  ylab(expression(Vernalisation~"(days)"))+
+  theme(axis.text.x=element_text(angle = 0, hjust = 0, size= 14))+
+  theme(axis.title.x=element_text(angle = 0, hjust = 0.5, size= 14))+
+  theme(axis.text.y=element_text(angle = 0, hjust = 0, size= 14))+
+  theme(axis.title.y=element_text(size= 14))
+  
+#Daily increment of vernalization-days based on daily average temperature. Each daily average temperature will accumulate between 0 and 1 vernalization-days dependent on the effectiveness of the temperature on vernalization response. See text for explanation of conditions of de-vernalization when daily average temperatures are >25 °C 
+```
+
+```{r}
+
+#Create and test interpolation function - Test if works 
+
+temp_ref  <- 10 # x-axes reference
+temp <- tt_card$temp # x-axes
+TT <- tt_card$TT # y-axes
+
+
+int_func <- function(temp,TT,temp_ref){
+
+  # if temp is too low or too high give extreme TT values
+ if(temp_ref>temp[length(temp)]) {
+   
+   out <- TT[length(TT)] 
+   # FIXME: approx functions seems to do that - need param
+   
+ } else if (temp_ref<temp[1]) {
+   
+   out <- TT[1]
+   
+ } else {
+   
+   # else interpolate
+   
+   #Explan: The function lm fits a linear model to data are we specify the model using a formula where the response variable (y) is separated by a ~ from the explanatory variables (x). 
+   
+   tryCatch(  
+   
+  out <- approx(temp, TT, xout = temp_ref, 
+         method="linear", 
+         rule = 2)$y,
+  error = function(e) 
+  {
+  out <- NA
+  }
+) 
+  
+} # end if check
+
+  return(out)  
+  
+ }
+  
+int_func(temp,TT,temp_ref)
+
+
+```
+
+```{r}
+
+#then created the same loop as per TT : cycle of 24 = 3 x 8 hours  REF Jones CA, Ritchie JT, Kiniry JR, Godwin DC (1986) Subroutine structure.In 'CERES-Maize: A simulation model of maize growth anddevelopment'. (Eds CA Jones, JR Kiniry) pp. 49-194. (Texas A&M University Press: Texas, USA
+
+TTfunc <- function(Tmin ,Tmax){         
+ 
+  if (Tmin>Tmax){
+   print("Tmin>Tmax")
+   break
+ } 
+  
+  TTav  <- 0
+  TTsum <- 0
+  
+  for(n in 1:8){ 
+    
+    tn <- 0
+    
+    TT_tn <- 0
+    
+    tn <- ((0.931 +  0.114*n - 0.0703 * n^2
+            + 0.0053 * n^3) * (Tmax-Tmin)) + 
+      Tmin # 8-h temperature
+    
+    TT_tn <- int_func(tt_card$temp, tt_card$T,tn) 
+    
+    TTsum <- TT_tn + TTsum
+    
+    print(TT_tn)
+    
+    }
+  TTav <- TTsum/8
+  
+  return(TTav)
+  }
+#test the function
+
+TTfunc(10,30)
+
+```
+
+```{r ReadCalcTt}
+
+df_We_vern <- df_We %>%
+  mutate(VernDay=TTfunc(Tm,Tx))
+
+
+```
+
+
+
+
+
+
+
+```{r}
+
+#Calculate accumulated Vern day
+
+df_CumTTvern <- df_We_vern %>%
+group_by(LocationYear) %>%
+arrange(Date) %>%
+mutate(SumVernDay = cumsum(VernDay)) %>%
+mutate(DayCount=Date-min(Date))
+
+head(df_CumTTvern)
+summary(df_CumTTvern)
+
+```
+
+```{r, fig.height=10, fig.width=10}
+#Graph Accumulated TT 
+
+df_CumTTvern %>%
+  ggplot(aes(x=DayCount,y=SumVernDay))+
+  geom_line(aes(colour=LocationYear, linetype=Country)) 
+  #facet_wrap(~LocationYear,scale="free") +
+  # theme(axis.text.x = element_text(angle = 90, hjust = 1)) 
+  # xlim(0,300)+
+  # ylim(0,5000)
+
+```
+
+
+
+
+```{r}
+
+#write.table(df_CumTTvern, "df_CumVern.txt")
+write.table(df_CumTTvern,paste0(workDPath, "df_CumTTvern.txt"))
+
+#that is the end of script 7VernalCalc
+```
+
