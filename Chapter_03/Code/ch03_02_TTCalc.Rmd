@@ -52,12 +52,14 @@ df_We %>%
   tidyr::gather("Variable", "Value",Tx:Pp) %>%
  #mutate(Month=format(as.Date(dmy(as.character(Date))),"%b")) %>%
   ggplot(aes(x=Date,y=Value))+
-  geom_line(aes(colour=factor(Variable))) +
+  geom_line(aes(colour=Variable)) +
   facet_wrap(~LocationYear,scale="free") +
   labs(x=" Date", y=" degree Celsius/hours  ")+
   scale_color_manual(values=c("#333333", "#9999CC", "#CC3300"))+
-  theme(axis.text.x = element_text(angle = 90, hjust = 1)) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1)) +
   scale_x_date(labels = date_format("%b-%Y"))
+
+ggsave(paste0(workDPath,"ch03_01_ReanTempPp.tiff"),width=8, height=8,dpi = 300)
 
 
 ```
@@ -72,7 +74,7 @@ REFS: MonksEtAl2009	,LonatiEtAl2009	,MootEtal2003, SilsburyetAl1984.
 							
 
 ```{r}
-
+s<-18
 tt_card <- data.frame(temp=c(0,15,22,35),TT=c(0,15,15,0))
 tt_card %>%
   ggplot(aes(x=temp, y=TT))+
@@ -80,14 +82,15 @@ tt_card %>%
   #labs(y="Thermal Time (oCd)") +
   geom_line()+
   theme_bw()+
-  ylim(0,20)+
+  ylim(0,16)+
 xlab(expression(Temperature~"("^"o"*"C)"))+
   ylab(expression(Thermal~Time~"("^"o"*"Cd)"))+
-  theme(axis.text.x=element_text(angle = 0, hjust = 0, size= 14))+
-  theme(axis.title.x=element_text(angle = 0, hjust = 0.5, size= 14))+
-  theme(axis.text.y=element_text(angle = 0, hjust = 0, size= 14))+
-  theme(axis.title.y=element_text(size= 14))
+  theme(axis.text.x=element_text( size= s))+
+  theme(axis.title.x=element_text( size= s))+
+  theme(axis.text.y=element_text( size= s))+
+  theme(axis.title.y=element_text(size= s))
 
+ggsave(paste0(workDPath,"ch03_02_TtCalcModel.tiff"),width=12, height=8,dpi = 300)
 
 ```
 
@@ -204,8 +207,6 @@ ggplot(aes(x=TTday_s, y= TTday)) +
 
 
 ```{r}
-
-
 str(df_We_tt)
 ```
 

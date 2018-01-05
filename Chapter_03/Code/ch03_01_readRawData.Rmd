@@ -16,7 +16,6 @@ Aim:
 - Calculate days to flowering
 - Saves technically consistent data
 
-
 ```{r, warning=FALSE}
 library(here)
 library(tidyr)
