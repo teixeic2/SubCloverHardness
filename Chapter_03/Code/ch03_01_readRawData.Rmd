@@ -17,7 +17,7 @@ Aim:
 - Saves technically consistent data
 
 ```{r, warning=FALSE}
-library(here)
+
 library(tidyr)
 library (dplyr)
 library (ggplot2)
@@ -25,6 +25,7 @@ library(agricolae)
 library(knitr)
 library (lubridate)
 library(scales)
+library(here)
 ```
 
 Paths
@@ -74,7 +75,7 @@ df_Data %>%
   ggplot(aes(x=Location,y=DaysToFlower))+
   geom_jitter(width = 0.2)+
   geom_boxplot(alpha=0.2)+
-theme(axis.text.x = element_text(angle = 90, hjust = 1))+
+theme(axis.text.x = element_text(angle = 45, hjust = 1))+
   
   facet_wrap(~Country)
 ```
