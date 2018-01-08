@@ -149,7 +149,7 @@ mutate(DOY=as.numeric(DOY))%>%
 #ggsave("plot_DaysTTFlower_SowingMonth_subset.png", width=12, height=6, dpi=400)
 
 
-ggsave(paste0(workDPath,"ch03_05_DaysTTFlower_SowingMonth_subset.tiff"),width=12, height=5,dpi = 300)
+ggsave(paste0(workDPath,"ch03_05_DaysTTFlower_SowingMonth_subset.tiff"),width=12, height=10,dpi = 300)
 
 ```
 
