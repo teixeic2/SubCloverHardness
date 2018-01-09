@@ -201,7 +201,8 @@ str(df_Rea4)
 df_Rea4 %>%
   mutate(SD_LOC = paste0(Location,"_",SowingDate)) %>%
   dplyr::select(LocationYear:Treatcultivar,DaysToFlower,TTtoFlower,Country,SD_LOC) %>%
-  filter(Location!="Melbourne")%>%
+  filter(Location!="Melbourne",Location!="ShentonPark" )%>%
+  filter(SowingDate !="1985-06-20")%>%
   filter(Treatcultivar=="Trikkala"| 
            Treatcultivar=="Nungarin"|
            Treatcultivar=="Denmark"|
@@ -209,32 +210,33 @@ df_Rea4 %>%
            Treatcultivar=="Bena"|
            Treatcultivar=="Tallarook"|
            Treatcultivar=="Woogenellup"|
+           Treatcultivar=="SeatonPark"|
+           Treatcultivar=="Larisa"|
            Treatcultivar=="Dalkeith") %>%
   gather("VarName","VarValue",DaysToFlower:TTtoFlower)  %>%
   mutate(VarName=factor(VarName, level=c("DaysToFlower","TTtoFlower"),
-                        labels=c("Days to flower","Thermal-time to flowering (oCd)"))) %>%
+                        labels=c("Days to flower", "Thermal time (oCd)"))) %>%
     mutate(Month=format(as.Date(ymd(SowingDate)),"%b")) %>%
 #  ggplot(aes(x=reorder(Month,month(SowingDate)), y=DaysToFlower)) +
   #filter(Treatcultivar=="MtBarker") %>%
-  ggplot(aes(x= reorder(SD_LOC,VarValue), y=VarValue))+
+  #ggplot(aes(x= reorder(SD_LOC,VarValue), y=VarValue))+
+  ggplot(aes(x= reorder(SowingDate,VarValue), y=VarValue))+
   geom_boxplot(alpha=0.2)+
   #geom_jitter(size=3,alpha=0.7,width = 0.1, aes(colour=reorder(Month,month(SowingDate)),shape=reorder(Month,month(SowingDate))))+
   #scale_shape_manual(values = c(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14))+
 #  geom_jitter(size=3,alpha=0.7,width = 0.1, aes(shape= Country, colour=Treatcultivar))+
   geom_point(size=3,alpha=0.7, aes(shape= Country, colour=Treatcultivar))+
   #theme(legend.position="none")+
-  labs(x="Experiment location", y="Time to flower")+
+  labs(x="Sowing Date", y="Time to flower")+
   theme(axis.text.y=element_text(size= 18))+
   theme_bw(base_size=18) +
   facet_grid(VarName~Location, scales="free") +
  # facet_wrap(~VarName, scales="free") +
-   theme(legend.position="top") + guides(colour=guide_legend(title="Cultivar ")) +
+  theme(legend.position="top") + guides(colour=guide_legend(title="Cultivar ")) +
   theme(axis.text.x=element_text(angle = 45, hjust = 1, size= 9))
 
 ggsave("plot_DaysTTFlowerCultivar.png", width=12, height=6, dpi=400)
 ```
-
-
 
 
 
