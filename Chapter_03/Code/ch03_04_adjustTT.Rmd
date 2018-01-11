@@ -13,12 +13,7 @@ AIM:
 
 _this script reads the file created in previous script (script 3 where the TT to flower was adjusted to 50% ). Normalisation of TT to flower.
 - graph the days and TTAdj50Flo(TT adjusted to 50% Flowering) by location and cultivar (explore location and cultivar effects )
-
-
-
-
 ```{r, warning=FALSE}
-library(here)
 library(tidyr)
 library (dplyr)
 library (ggplot2)
@@ -26,11 +21,15 @@ library(agricolae)
 library(knitr)
 library (lubridate)
 library(scales)
+library(here)
+```
+
+```{r}
+print(paste0("Here is: ", here()))
 ```
 
 
 ```{r}
-print(paste0("Here is: ", here()))
 chapterPath <- paste0(here(),"/Chapter_03") 
 rawPath <- paste0(chapterPath,"/Data/RawData/")
 workDPath <- paste0(chapterPath,"/Data/WorkedData/")
@@ -52,21 +51,28 @@ summary(df_Rea3)
 ```
 
 Use slope values (Rea3) to normalise TT flowering 
+Here select only dataset with 50% flowering now that is adjusted (remove Dear et al 5 and 100 to avoid repeated calculation )
+
+373 rows decrease to (373 - 28 x2)=317 (filter out )
 
 ```{r}
 #Flowering reference = Floref
 floref <- 50
 
-TTpercflo <- 2.2 # degree days from 5 to full (100) flowering (value calculated from DearEtAL1993_Reanalysis3 script 1/0.45)
+TTpercflo <- 2.17 # oCd per % flowering (value calculated from DearEtAL1993_Reanalysis3 script 1 oCd /0.45 % flower)
 
 df_Rea4 <- df_Rea3 %>%
-  mutate(TTFloAdj=((floref-PercentFlower)*TTpercflo )+TTtoFlower)
+  mutate(TTFloAdj=((floref-PercentFlower)*TTpercflo)+TTtoFlower) %>%
+    mutate(Out=paste0(AuthorYear,"_",PercentFlower)) %>%
+  filter(Out!= as.character("DearEtal1993_5")) %>%
+  filter(Out!= as.character("DearEtal1993_100"))
 
 summary(df_Rea4)
 
   
 ```
 
+should recalculate Dear et al again ? It should be the same TTtoflower = TTFloAdj ! FIX ME .
 
 ```{r}
 #graph TTtoFlower vs TTFloAdj
@@ -79,17 +85,21 @@ ggplot(aes(x=TTtoFlower, y= TTFloAdj)) +
 
 ```
 
-Analysis of TTFlowerAdj vs T5-100. Is there any relationship between Time to flower and period (short orlong) for flower duration (5 to 100 %)? use DearEtAl1993 dataset to check.
+Analysis of TTFlowerAdj vs T5-100. 
+
+Is there any relationship between Time to flower and period (short orlong) for flower duration (5 to 100 %)? use DearEtAl1993 dataset to check.
 
 
-```{r}
+```{r, fig.height=20, fig.width=18}
 df_Rea4  %>% 
   filter(LocationYear=="Waggawagga1985"& AuthorYear=="DearEtal1993") %>%
   #tidyr::gather("Variable", "Value",PercentFlower,TTFloAdj) %>%
-    ggplot(aes(x=PercentFlower, y= TTFloAdj, colour=Treatcultivar)) +
-  geom_point(shape=21) 
+  ggplot(aes(x=PercentFlower, y= TTtoFlower, colour=SowingDate)) +
+ #   ggplot(aes(x=PercentFlower, y= TTFloAdj, colour=SowingDate)) +
+  geom_line(shape=21) +
+  geom_point(size=4) +
  #theme(legend.position="none")
-  #facet_grid(), scales = "free")
+  facet_wrap(SowingDate~Treatcultivar, scales = "free")
  
 ```
 
@@ -197,7 +207,7 @@ str(df_Rea4)
 ```
 
 
-```{r, fig.height=12 , fig.width= 20}
+```{r, fig.height=12 , fig.width= 25}
 df_Rea4 %>%
   mutate(SD_LOC = paste0(Location,"_",SowingDate)) %>%
   dplyr::select(LocationYear:Treatcultivar,DaysToFlower,TTtoFlower,Country,SD_LOC) %>%
@@ -220,7 +230,8 @@ df_Rea4 %>%
 #  ggplot(aes(x=reorder(Month,month(SowingDate)), y=DaysToFlower)) +
   #filter(Treatcultivar=="MtBarker") %>%
   #ggplot(aes(x= reorder(SD_LOC,VarValue), y=VarValue))+
-  ggplot(aes(x= reorder(SowingDate,VarValue), y=VarValue))+
+ # ggplot(aes(x= reorder(SowingDate,VarValue), y=VarValue))+
+   ggplot(aes(x=reorder(Month,month(SowingDate)), y=VarValue))+
   geom_boxplot(alpha=0.2)+
   #geom_jitter(size=3,alpha=0.7,width = 0.1, aes(colour=reorder(Month,month(SowingDate)),shape=reorder(Month,month(SowingDate))))+
   #scale_shape_manual(values = c(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14))+
@@ -233,7 +244,7 @@ df_Rea4 %>%
   facet_grid(VarName~Location, scales="free") +
  # facet_wrap(~VarName, scales="free") +
   theme(legend.position="top") + guides(colour=guide_legend(title="Cultivar ")) +
-  theme(axis.text.x=element_text(angle = 45, hjust = 1, size= 9))
+  theme(axis.text.x=element_text(angle = 45, hjust = 1, size= 17))
 
 ggsave("plot_DaysTTFlowerCultivar.png", width=12, height=6, dpi=400)
 ```
