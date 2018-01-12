@@ -19,14 +19,15 @@ Aim:
 
 
 ```{r, warning=FALSE}
-library(here)
+
 library(tidyr)
 library (dplyr)
 library (ggplot2)
 library(agricolae)
 library(knitr)
-library (lubridate)
+library(lubridate)
 library(scales)
+library(here)
 ```
 
 Paths

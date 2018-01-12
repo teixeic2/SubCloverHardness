@@ -11,8 +11,11 @@ note: Re analysis after  merged weather, calculated Tt, re calculate the TT for 
 
 AIM:
 
-_this script reads the file created in previous script (script 3 where the TT to flower was adjusted to 50% ). Normalisation of TT to flower.
-- graph the days and TTAdj50Flo(TT adjusted to 50% Flowering) by location and cultivar (explore location and cultivar effects )
+_This script reads the file created in previous script (script 3 where the TT to flower was adjusted to 50% ). Normalisation of TT to flower.
+-Graph the days and TTAdj50Flo(TT adjusted to 50% Flowering) by location and cultivar (explore location and cultivar effects )
+-First the effect of genoytpe is explored: same environment with different genotypes  
+- Then in the second part it selects a subset of data to explore the effect of seasonality. Same genotypes in different envrionments.
+
 ```{r, warning=FALSE}
 library(tidyr)
 library (dplyr)
@@ -175,7 +178,7 @@ ggsave(paste0(workDPath,"ch03_06_DaysTTFlowerLocation.tiff"),width=12, height=6,
 
 Then select Contrasting cultivars to compare : eg: Trikkala, Tallarook, MtBarker
 
-```{r,fig.height=5, fig.width=10}
+```{r,fig.height=5, fig.width=10, include=FALSE}
 
 library(scales)
 df_Rea4  %>% 
@@ -206,7 +209,7 @@ summary (df_Rea4)
 str(df_Rea4)
 ```
 
-This graph shows the relative days and TT having the minimum time to flower
+This graph shows the relative days and TT having the minimum time to flower. The aim is to show the difference of genotypes. (GENOTYPE EFFECT)
 
 ```{r, fig.height=12 , fig.width= 25}
 df_rel_gen<- df_Rea4 %>%
@@ -225,20 +228,23 @@ df_rel_gen<- df_Rea4 %>%
            Treatcultivar=="Larisa"|
            Treatcultivar=="Dalkeith") %>%
   group_by(SD_LOC) %>%
-  mutate(DaysToFlower=DaysToFlower/min(DaysToFlower)-1, TTtoFlower=TTtoFlower/min(TTtoFlower)-1) %>% # UNFINISHED! 
+  #mutate(DaysToFlower=DaysToFlower/min(DaysToFlower)-1, TTtoFlower=TTtoFlower/min(TTtoFlower)-1) %>% # UNFINISHED! 
+  mutate(DaysToFlower=DaysToFlower-min(DaysToFlower),TTtoFlower=TTtoFlower-min(TTtoFlower)) %>% # UNFINISHED! 
   gather("VarName","VarValue",DaysToFlower:TTtoFlower)  %>%
   mutate(VarName=factor(VarName, level=c("DaysToFlower","TTtoFlower"),
                         labels=c("Days to flower", "Thermal time (oCd)"))) %>%
-    mutate(Month=format(as.Date(ymd(SowingDate)),"%b")) %>%
-   filter(VarName=="Days to flower")
+   mutate(Month=format(as.Date(ymd(SowingDate)),"%b")) #%>%
+   #filter(VarName=="Days to flower")
 #  ggplot(aes(x=reorder(Month,month(SowingDate)), y=DaysToFlower)) +
   #filter(Treatcultivar=="MtBarker") %>%
   #ggplot(aes(x= reorder(SD_LOC,VarValue), y=VarValue))+
  # ggplot(aes(x= reorder(SowingDate,VarValue), y=VarValue))+
   
   df_rel_gen %>%
-   ggplot(aes(x=reorder(Month,month(SowingDate)), y=VarValue))+
- # geom_boxplot(alpha=0.2)+
+  # ggplot(aes(x=reorder(Month,month(SowingDate)), y=VarValue))+
+ #  ggplot(aes(x=reorder(SD_LOC,Treatcultivar), y=VarValue))+
+   ggplot(aes(x=reorder(SD_LOC,VarValue), y=VarValue))+
+    # geom_boxplot(alpha=0.2)+
   #geom_jitter(size=3,alpha=0.7,width = 0.1, aes(colour=reorder(Month,month(SowingDate)),shape=reorder(Month,month(SowingDate))))+
   #scale_shape_manual(values = c(0,1,2,3,4,5,6,7,8,9,10,11,12,13,14))+
 #  geom_jitter(size=3,alpha=0.7,width = 0.1, aes(shape= Country, colour=Treatcultivar))+
@@ -246,24 +252,34 @@ df_rel_gen<- df_Rea4 %>%
   geom_point(size=5,alpha=0.7, aes(shape= Country, colour=Treatcultivar))+
    
   #theme(legend.position="none")+
-  labs(x="Sowing Date", y="Time to flower")+
+  labs(x="Location and sowing date", y="Difference in time to flower among cultivars")+
   theme(axis.text.y=element_text(size= 18))+
   theme_bw(base_size=18) +
-  facet_wrap(~Location,  ncol=6) +
- # facet_wrap(~VarName, scales="free") +
+ # facet_wrap(~Location,  ncol=6) +
+#  facet_wrap(~VarName, scales="free") +
+      facet_grid(VarName~., scales="free") +
   theme(legend.position="top") + guides(colour=guide_legend(title="Cultivar ")) +
   theme(axis.text.x=element_text(angle = 45, hjust = 1, size= 15))
 
 ggsave(paste0(workDPath,"ch03_07_DaysTtGenotype.tiff"),width=25, height=12, dpi=300)
 ```
 
+Here find maximum and mininum values days and tt among cultivars to use in text.
 
-Need to do with TT as well ? 
+```{r}
+df_rel_gen %>%
+  group_by(VarName) %>%
+  dplyr::select(VarName,VarValue) %>%
+  summarise(min=min(VarValue), max=max(VarValue))
+```
+
+
+Script above shows that the maximum difference was found in Adelaide sown in March : Tallarook flowered 126 days (or 1332 oCd)after Nungarin!
 
 Show genotype effect (need to fix it)
 
 
-```{r,fig.height=5, fig.width=10}
+```{r,fig.height=5, fig.width=10, include =FALSE}
 
 library(scales)
 df_Rea41 <- df_Rea4  %>% 
@@ -297,10 +313,10 @@ df_Rea41 <- df_Rea4  %>%
 ```
 
 
+DAta exxploration : use all cultivars and see trends due to sowing date in the different countries 
 
 
-
-```{r, fig.height=5, fig.width=10}
+```{r, fig.height=5, fig.width=20, include =TRUE}
 df_Rea4  %>% 
   dplyr::select(LocationYear:Treatcultivar,DaysToFlower,TTtoFlower,Country,TTFloAdj) %>%
   tidyr::gather("Variable", "Value",DaysToFlower,TTFloAdj) %>%
@@ -313,7 +329,7 @@ df_Rea4  %>%
   geom_boxplot(alpha=0.2)+
   geom_jitter(alpha=0.2,width = 0.3, aes(colour=Location))+
   labs(x=" Sowing Month", y="                oCd                Days ")+
-  facet_wrap(Variable~Country)
+  facet_wrap(Variable~Country, scales = "free")
   #geom_point(shape=21) +
 # theme(legend.position="none")+
   #facet_grid(Month~SowTreat, scales = "free")
@@ -345,9 +361,6 @@ summary (df_Rea4)
 
 ```
 
-
-
-
 Then, select datasets with more than one sowing date in different months:
 
 Condobolin1986
@@ -358,7 +371,7 @@ Waggawagga1985
 
 This df will be df_Rea5
 
-```{r,fig.height=5, fig.width=10,warning=FALSE}
+```{r,fig.height=5, fig.width=20, warning=TRUE}
 library(scales)
 df_Rea5 <-df_Rea4  %>% 
   filter(LocationYear=="Condobolin1986"| 
@@ -377,8 +390,6 @@ df_Rea5 <-df_Rea4  %>%
 
 #fixme makes month _number into date in month name (Apr, May etc ) 
 
-  
-
 ```
 
 
@@ -386,24 +397,25 @@ Then, select Location year with different cultivars in a range of Pp. This will 
 indexLocCult = combination of LocationYear and cultivar.
 
 
-```{r,fig.height=5, fig.width=10,warning=FALSE}
+```{r,fig.height=5, fig.width=20,warning=FALSE}
 
 df_Rea6 <- df_Rea5 %>% 
   filter(LocationYear!="Waggawagga1985") %>%
   mutate(indexLocCult=paste0(LocationYear,"_",Treatcultivar))
-  
+
+summary(df_Rea6)
+```
+```{r,fig.height=5, fig.width=20,warning=FALSE}
   df_Rea6 %>%
   ggplot(aes(x=month(SowingDate), y= Value, colour=indexLocCult)) +
   geom_point(shape=21) +
  geom_smooth(se=FALSE)+
   #theme(legend.position="none")+
   facet_grid(Variable~Country, scales = "free")
-
-summary(df_Rea6)
 ```
 
 
-```{r}
+```{r,fig.height=5, fig.width=20,warning=FALSE}
 
 #Next step include Pp (next script Reanalysis 5). Use table created here! 
 
