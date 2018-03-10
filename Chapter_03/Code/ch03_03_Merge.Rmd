@@ -187,21 +187,26 @@ df_Rea3 %>%
 df_ReaSlop <- df_Rea3 %>%
   filter(LocationYear=="Waggawagga1985" &  AuthorYear=="DearEtal1993") %>%
   group_by(SowingDate,Treatcultivar)%>%
-do(mod = lm(PercentFlower ~ TTtoFlower, data = .)) %>%
-  mutate(Slope = summary(mod)$coeff[2]) %>%
-  dplyr::select(-mod)
+  do(mod = lm(PercentFlower ~ TTtoFlower, data = .)) 
+
+
+library(broom)
+df_stats <- tidy(df_ReaSlop, mod) %>%
+  mutate(term=factor(term)) %>%
+  filter(term=="TTtoFlower")
+
 
 #note: slope is %/oCd!!
 
-summary(df_ReaSlop)
+summary(df_stats)
 ```
 
 
 ```{r, fig.height=20}
 #graph the slopes 
-df_ReaSlop %>%
+df_stats %>%
   group_by(SowingDate) %>%
-  ggplot(aes(x=reorder(Treatcultivar,Slope), y=95/Slope,fill=Treatcultivar)) +
+  ggplot(aes(x=reorder(Treatcultivar,estimate), y=95/estimate,fill=Treatcultivar)) +
   geom_bar(size=10, stat='identity') +
   facet_wrap(~SowingDate)+
     theme(text = element_text(size=40),
@@ -216,8 +221,8 @@ df_ReaSlop %>%
 
 ```{r}
 
-df_tempTTflo <- df_ReaSlop %>%
-  mutate(TTflower= 95/Slope)
+df_tempTTflo <- df_stats %>%
+  mutate(TTflower= 95/estimate)
 
 #write.table(df_tempTTflo, "dfTempTTFLOR.txt")
 write.table(df_tempTTflo,paste0(workDPath, "dfTempTTFLOR.txt")) # FIXME: data need to be saved with clear/EXPLANATORY NAME .... NOT only a NUMBER!!!!!!!
@@ -231,13 +236,19 @@ write.table(df_tempTTflo,paste0(workDPath, "dfTempTTFLOR.txt")) # FIXME: data ne
 
 #create the average of TT for 5 , 50 and 100 % , used 95/Slope!
 
-df_ReaSlop %>%
-  group_by(SowingDate)%>%
-  mutate(TT=95/Slope)%>%
-  summarise(mean=mean(Slope), sd=sd(Slope),meanTT=mean(TT), sdTT=sd(TT))
+# df_ReaSlop %>%
+#   group_by(SowingDate)%>%
+#   mutate(TT=95/estimate)%>%
+#   summarise(mean=mean(estimate), sd=sd(estimate),meanTT=mean(TT), sdTT=sd(TT))
+
+df_tempTTflo1 <-df_tempTTflo %>%
+ group_by(SowingDate)%>%
+  dplyr::select(TTflower)%>%
+  summarise_all(funs(mean,sd))
+  
   
 # calculate Standard error as  <- function(x) sd(x)/sqrt(smaple size(n)) for dear et al n=4
-summary(df_ReaSlop)
+summary(df_tempTTflo1)
 ```
 
 

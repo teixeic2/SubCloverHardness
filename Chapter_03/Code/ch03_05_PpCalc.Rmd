@@ -8,9 +8,6 @@ output:
 note: This script includes Pp analysis using selected datasets from Reanalysis4 (df_REa6)
 ---
 
-
-
-
 ```{r, warning=FALSE}
 library(here)
 library(tidyr)
@@ -76,8 +73,8 @@ summary (df_Rea7)
 
 ```{r}
 df_Rea7 <-df_Rea7 %>%
-  rename(Cultivar=Treatcultivar) %>%
-  mutate(SowingDate= as.Date(SowingDate))
+   rename(Cultivar=Treatcultivar) %>%
+   mutate(SowingDate= as.Date(SowingDate))
 
 str(df_Rea7)
 ```
